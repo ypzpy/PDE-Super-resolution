@@ -29,7 +29,7 @@ def sample_p_0(batch_size):
     mean = w_low.reshape(1,1,20,20)
     b = np.repeat(mean,batch_size,axis=0)
     prior = torch.tensor(b).to(device).to(torch.float32)
-    prior = prior + torch.rand_like(prior)
+    prior = prior + 0.1 * torch.rand_like(prior)
     
     return prior
 
@@ -78,20 +78,24 @@ def ula_posterior(z, x, G):
     """
     z = z.clone().detach().requires_grad_(True)
     chains_evolution = []
+    preconditioner = covariance
     for i in range(K):
+        # Grad log-likelihood
         x_hat = G(z)
-        g_log_likelihood = calculate_log_likelihood(x_hat,x,batch_size)
-        grad_g = torch.autograd.grad(g_log_likelihood, z)[0]
-        grad_log_likelihood = s**2 / (N_low**2) * torch.matmul(covariance,grad_g.reshape(batch_size,N_low**2,1)).reshape(batch_size,1,N_low,N_low)
+        log_likelihood = calculate_log_likelihood(x_hat,x,batch_size)
+        grad_ll = torch.autograd.grad(log_likelihood, z)[0]
+        grad_log_likelihood = torch.matmul(preconditioner,grad_ll.reshape(batch_size,N_low**2,1)).reshape(batch_size,1,N_low,N_low)
         
+        # Grad prior
         w_low_tensor = torch.tensor(w_low).to(device).to(torch.float32)
         difference = z.reshape(batch_size,1,N_low**2) - w_low_tensor.reshape(1,N_low**2)
-        grad_log_prior = - s**2 * difference.reshape(batch_size,1,N_low,N_low)
+        grad_log_prior = - difference.reshape(batch_size,1,N_low,N_low)
         
+        # Random noise term
         W = torch.randn(*[batch_size,1,N_low,N_low]).to(device)
-        random = torch.sqrt(torch.tensor(2.)) * s * torch.matmul(sqrt_covariance,W.reshape(batch_size,N_low**2,1)).reshape(batch_size,1,N_low,N_low)
+        random = torch.matmul(sqrt_covariance,W.reshape(batch_size,N_low**2,1)).reshape(batch_size,1,N_low,N_low)
         
-        z = z + grad_log_prior + grad_log_likelihood + random
+        z = z + s**2 * grad_log_prior + s**2 * grad_log_likelihood + torch.sqrt(torch.tensor(2.)) * s * random
         chains_evolution.append(z.cpu().data.numpy())   
            
     return z.detach(), chains_evolution
@@ -109,12 +113,12 @@ if __name__ == "__main__":
     batch_size = 32
 
     # Epoch number and step size of Langevin dynamics
-    K = 200
-    s = 0.05
+    K = 80
+    s = 0.001
 
     GP_l = 0.1
     GP_sigma = 0.1
-    ll_sigma = 0.1
+    ll_sigma = 0.05
     epoch_num = 1000
     minimum_loss = float('inf')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
