@@ -126,7 +126,7 @@ if __name__ == "__main__":
     sqrt_covariance = torch.tensor(sqrt_matrix(positive_covariance)).to(device).to(torch.float32)
 
     # Load training data
-    with h5py.File('high_res_500.h5', 'r') as hf:
+    with h5py.File('data/high_res_500.h5', 'r') as hf:
         data = hf['high_res_GP'][:]
     data = torch.tensor(data.reshape(500,1,N_high,N_high))
     data = data.to(torch.float32).to(device)
@@ -156,7 +156,7 @@ if __name__ == "__main__":
         
         writer.add_scalar("Loss/train", loss_g, epoch)
         if loss_g < minimum_loss:
-            torch.save(G.state_dict(), 'best_G.pth')
+            torch.save(G.state_dict(), 'models/best_G.pth')
             minimum_loss = loss_g
             
         print("Epoch: {}".format(epoch), "Loss: {}".format(loss_g.item()))
