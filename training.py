@@ -113,7 +113,7 @@ if __name__ == "__main__":
     batch_size = 32
 
     # Epoch number and step size of Langevin dynamics
-    K = 200
+    K = 150
     s = 0.0002
 
     GP_l = 0.1
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     ll_sigma = 0.01
     
     epoch_num = 1000
-    lr = 0.0005
+    lr = 0.0006
     minimum_loss = float('inf')
     loss_track = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     mse = nn.MSELoss(reduction='sum')
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
     # optG = torch.optim.SGD(G.parameters(), lr = 0.0001)
-    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=0.05)
+    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=40, gamma=0.06)
     # r_scheduleG = torch.optim.lr_scheduler.ExponentialLR(optG, 0.98)
     
     dir_name = f'models/sigma{ll_sigma}_step{s}_lr{lr}'
