@@ -119,8 +119,11 @@ if __name__ == "__main__":
     GP_l = 0.1
     GP_sigma = 0.1
     ll_sigma = 0.01
+    
     epoch_num = 1000
+    lr = 0.0005
     minimum_loss = float('inf')
+    loss_track = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     w_low, r_low, A_low, x_low, y_low = generate_data(N_low)
@@ -139,31 +142,54 @@ if __name__ == "__main__":
     G = UpScale()
     G.apply(weights_init_xavier).to(device)
     mse = nn.MSELoss(reduction='sum')
-    optG = torch.optim.Adam(G.parameters(), lr = 0.0005, weight_decay=0, betas=(0.5, 0.999))
+    optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
     # optG = torch.optim.SGD(G.parameters(), lr = 0.0001)
-    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=60, gamma=0.1)
+    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=0.05)
+    # r_scheduleG = torch.optim.lr_scheduler.ExponentialLR(optG, 0.98)
+    
+    dir_name = f'models/sigma{ll_sigma}_step{s}_lr{lr}'
+    makedir(dir_name)
+    logger = setup_logging('job0', dir_name, console=True)
+    parameters = [GP_l, GP_sigma, ll_sigma, s, lr]
+    logger.info(f'Training for {epoch_num} epoches and [GP_l, GP_sigma, ll_sigma, step_size, learning_rate] : {parameters}')
     
     for epoch in range(1, epoch_num+1):
-        
         x = sample_p_data()
         posterior_initial = sample_p_0(batch_size)
         posterior_final, posterior_chain = ula_posterior(posterior_initial, x, G)
 
         optG.zero_grad()
         x_hat = G(posterior_final.detach())
-        loss_g = -calculate_log_likelihood(x_hat,x,batch_size)/batch_size
+        loss = - calculate_log_likelihood(x_hat,x,batch_size)/batch_size
         # loss_g = mse(x_hat,x)/batch_size
-        loss_g.backward()
+        loss.backward()
         optG.step()
         
+        loss_track.append(loss.cpu().data.numpy())
+        np.save(f'{dir_name}/chains/loss_curve.npy', np.array(loss_track))
+        
+        logger.info(f'Epoch {epoch}/{epoch_num}: Loss = {loss}')
+        writer.add_scalar("Loss/train", loss, epoch)
+        
+        if loss < minimum_loss:
+            save_model(dir_name, epoch, 'best_model', r_scheduleG, G, optG)
+            minimum_loss = loss
+            np.save(f'{dir_name}/chains/post_best_chain.npy', posterior_chain)
+            np.save(f'{dir_name}/chains/high_res_samples.npy', x.cpu().data.numpy())
+            
+        if epoch%50 == 0:
+            save_model(dir_name, epoch, 'model_epoch_{}'.format(epoch), r_scheduleG, G, optG)
+            np.save(f'{dir_name}/chains/post_chain_epoch_{epoch}.npy', posterior_chain)
+            np.save(f'{dir_name}/chains/high_res_samples_epoch_{epoch}.npy', x.cpu().data.numpy())
+    
         r_scheduleG.step()
         
-        writer.add_scalar("Loss/train", loss_g, epoch)
-        if loss_g < minimum_loss:
-            torch.save(G.state_dict(), 'models/best_G2.pth')
-            minimum_loss = loss_g
-            
-        print("Epoch: {}".format(epoch), "Loss: {}".format(loss_g.item()))
+        
+
+
+
+
+
 
    
     '''for epoch in range(1, epoch_num+1):
