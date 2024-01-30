@@ -113,12 +113,12 @@ if __name__ == "__main__":
     batch_size = 32
 
     # Epoch number and step size of Langevin dynamics
-    K = 80
-    s = 0.001
+    K = 200
+    s = 0.0002
 
     GP_l = 0.1
     GP_sigma = 0.1
-    ll_sigma = 0.05
+    ll_sigma = 0.01
     epoch_num = 1000
     minimum_loss = float('inf')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -139,9 +139,9 @@ if __name__ == "__main__":
     G = UpScale()
     G.apply(weights_init_xavier).to(device)
     mse = nn.MSELoss(reduction='sum')
-    optG = torch.optim.Adam(G.parameters(), lr = 0.0001, weight_decay=0, betas=(0.5, 0.999))
+    optG = torch.optim.Adam(G.parameters(), lr = 0.0005, weight_decay=0, betas=(0.5, 0.999))
     # optG = torch.optim.SGD(G.parameters(), lr = 0.0001)
-    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=60, gamma=0.5)
+    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=60, gamma=0.1)
     
     for epoch in range(1, epoch_num+1):
         
@@ -160,7 +160,7 @@ if __name__ == "__main__":
         
         writer.add_scalar("Loss/train", loss_g, epoch)
         if loss_g < minimum_loss:
-            torch.save(G.state_dict(), 'models/best_G.pth')
+            torch.save(G.state_dict(), 'models/best_G2.pth')
             minimum_loss = loss_g
             
         print("Epoch: {}".format(epoch), "Loss: {}".format(loss_g.item()))
