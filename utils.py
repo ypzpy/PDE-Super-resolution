@@ -6,6 +6,9 @@ import torch.nn as nn
 import torchvision
 import numpy as np
 import torch.nn.functional as F
+import torch.utils.data as data
+import h5py
+
 
 def weights_init_xavier(m):
     classname = m.__class__.__name__
@@ -51,3 +54,20 @@ def save_model(dir_name, epoch, model_name, lr_schedule, G, optG):
             'optG': optG.state_dict()
         }
     torch.save(save_dict, f'{dir_name}/ckpt/{model_name}.pth')
+
+
+class DataFromH5File(data.Dataset):
+    def __init__(self, high_res_file, low_res_file):
+        high_data = h5py.File(high_res_file, 'r')
+        low_data = h5py.File(low_res_file, 'r')
+        self.hr = high_data['high_res'][:500]
+        self.lr = low_data['low_res'][:500]
+        
+    def __getitem__(self, idx):
+        label = torch.from_numpy(self.hr[idx]).float()
+        data = torch.from_numpy(self.lr[idx]).float()
+        return data, label
+    
+    def __len__(self):
+        assert self.hr.shape[0] == self.lr.shape[0], "Wrong data length"
+        return self.hr.shape[0]
