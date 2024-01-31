@@ -106,7 +106,7 @@ def generate_data(N):
     return w, r, A, x, y
 
 
-def generate_u_high(num, l, sigma, N_low, N_high, file_name):
+def generate_u_high(num, l, sigma, N_low, N_high, file_name_high, file_name_low):
     """
     Generate and save high-resolution labels by super-resolving the forcing term of low-res field
     
@@ -139,14 +139,22 @@ def generate_u_high(num, l, sigma, N_low, N_high, file_name):
         C = np.linalg.solve(A_high,r_high_sample)
         w_high_sample = C.reshape((N_high,N_high))
         
+        C = np.linalg.solve(A_low,r_low_sample)
+        w_low_sample = C.reshape((N_low,N_low))
+        
         if i == 0:
-            total = w_high_sample.reshape(1,w_high_sample.shape[0],-1)
+            total_high = w_high_sample.reshape(1,w_high_sample.shape[0],-1)
+            total_low = w_low_sample.reshape(1,w_low_sample.shape[0],-1)
         else:
-            total = np.concatenate([total,w_high_sample.reshape(1,w_high_sample.shape[0],-1)],axis=0)
+            total_high = np.concatenate([total_high,w_high_sample.reshape(1,w_high_sample.shape[0],-1)],axis=0)
+            total_low = np.concatenate([total_low,w_low_sample.reshape(1,w_low_sample.shape[0],-1)],axis=0)
             
     # Save to h5py file
-    with h5py.File(file_name, 'w') as hf:
-        hf.create_dataset("high_res_GP",  data=total)
+    with h5py.File(file_name_high, 'w') as hf:
+        hf.create_dataset("high_res",  data=total_high)
+    
+    with h5py.File(file_name_low, 'w') as hf:
+        hf.create_dataset("low_res",  data=total_low)
         
     return
 

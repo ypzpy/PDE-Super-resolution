@@ -15,7 +15,7 @@ def sample_p_data():
     ------------
     Random samples: torch.Tensor
     """
-    return data[torch.LongTensor(batch_size).random_(0,500)].detach()
+    return data[torch.LongTensor(batch_size).random_(0,training_size)].detach()
 
 def sample_p_0(batch_size):
     """
@@ -111,17 +111,19 @@ if __name__ == "__main__":
     N_low = 20
     N_high = 100
     batch_size = 32
+    training_size = 500
 
     # Epoch number and step size of Langevin dynamics
     K = 150
-    s = 0.0002
+    s = 0.0001
 
     GP_l = 0.1
     GP_sigma = 0.1
-    ll_sigma = 0.01
+    ll_sigma = 0.005
     
     epoch_num = 1000
-    lr = 0.0006
+    lr = 0.0005
+    gamma = 0.01
     minimum_loss = float('inf')
     loss_track = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -129,13 +131,13 @@ if __name__ == "__main__":
     w_low, r_low, A_low, x_low, y_low = generate_data(N_low)
     mean_u, covariance_u = u_low_prior(GP_l,GP_sigma,N_low)
     covariance = torch.tensor(covariance_u).to(device).to(torch.float32)
-    positive_covariance = covariance + 1e-5 * torch.eye(400).to(device)
+    positive_covariance = covariance + 1e-5 * torch.eye(N_low ** 2).to(device)
     sqrt_covariance = torch.tensor(sqrt_matrix(positive_covariance)).to(device).to(torch.float32)
 
     # Load training data
-    with h5py.File('data/high_res_500.h5', 'r') as hf:
+    with h5py.File(f'data/high_res_{training_size}.h5', 'r') as hf:
         data = hf['high_res_GP'][:]
-    data = torch.tensor(data.reshape(500,1,N_high,N_high))
+    data = torch.tensor(data.reshape(training_size,1,N_high,N_high))
     data = data.to(torch.float32).to(device)
     dataloader = torch.utils.data.DataLoader(dataset=data,batch_size=batch_size,shuffle=True)
 
@@ -144,10 +146,10 @@ if __name__ == "__main__":
     mse = nn.MSELoss(reduction='sum')
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
     # optG = torch.optim.SGD(G.parameters(), lr = 0.0001)
-    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=40, gamma=0.06)
+    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=gamma)
     # r_scheduleG = torch.optim.lr_scheduler.ExponentialLR(optG, 0.98)
     
-    dir_name = f'models/sigma{ll_sigma}_step{s}_lr{lr}'
+    dir_name = f'models/{training_size}/sigma{ll_sigma}_step{s}_lr{lr}_gamma{gamma}'
     makedir(dir_name)
     logger = setup_logging('job0', dir_name, console=True)
     parameters = [GP_l, GP_sigma, ll_sigma, s, lr]
@@ -177,7 +179,7 @@ if __name__ == "__main__":
             np.save(f'{dir_name}/chains/post_best_chain.npy', posterior_chain)
             np.save(f'{dir_name}/chains/high_res_samples.npy', x.cpu().data.numpy())
             
-        if epoch%50 == 0:
+        if epoch%100 == 0:
             save_model(dir_name, epoch, 'model_epoch_{}'.format(epoch), r_scheduleG, G, optG)
             np.save(f'{dir_name}/chains/post_chain_epoch_{epoch}.npy', posterior_chain)
             np.save(f'{dir_name}/chains/high_res_samples_epoch_{epoch}.npy', x.cpu().data.numpy())
