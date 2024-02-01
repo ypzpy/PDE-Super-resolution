@@ -115,7 +115,7 @@ if __name__ == "__main__":
     N_low = 20
     N_high = 100
     batch_size = 32
-    training_size = 500
+    training_size = 100
 
     # Epoch number and step size of Langevin dynamics
     K = 150
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     ll_sigma = 0.005
     
     epoch_num = 1000
-    lr = 0.0005
+    lr = 0.001
     gamma = 0.01
     minimum_loss = float('inf')
     loss_track = []
