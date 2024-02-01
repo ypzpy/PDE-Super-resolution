@@ -126,8 +126,8 @@ if __name__ == "__main__":
     ll_sigma = 0.005
     
     epoch_num = 1000
-    lr = 0.001
-    gamma = 0.01
+    lr = 0.005
+    gamma = 0.1
     minimum_loss = float('inf')
     loss_track = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
