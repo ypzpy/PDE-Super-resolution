@@ -60,8 +60,8 @@ class DataFromH5File(data.Dataset):
     def __init__(self, high_res_file, low_res_file):
         high_data = h5py.File(high_res_file, 'r')
         low_data = h5py.File(low_res_file, 'r')
-        self.hr = high_data['high_res'][:500]
-        self.lr = low_data['low_res'][:500]
+        self.hr = high_data['high_res'][:100]
+        self.lr = low_data['low_res'][:100]
         
     def __getitem__(self, idx):
         label = torch.from_numpy(self.hr[idx]).float()

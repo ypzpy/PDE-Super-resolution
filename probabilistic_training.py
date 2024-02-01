@@ -155,7 +155,7 @@ if __name__ == "__main__":
     # r_scheduleG = torch.optim.lr_scheduler.ExponentialLR(optG, 0.98)
     
     # Logger info
-    dir_name = f'models/{training_size}/sigma{ll_sigma}_step{s}_lr{lr}_gamma{gamma}'
+    dir_name = f'models/probabilistic_training/{training_size}/sigma{ll_sigma}_step{s}_lr{lr}_gamma{gamma}'
     makedir(dir_name)
     logger = setup_logging('job0', dir_name, console=True)
     parameters = [GP_l, GP_sigma, ll_sigma, s, lr]

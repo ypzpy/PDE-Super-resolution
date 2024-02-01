@@ -4,6 +4,7 @@ from utils import *
 from scipy.linalg import sqrtm
 import torch
 import torch.nn as nn
+import torch.utils.data as data
 from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter()
 
@@ -17,14 +18,14 @@ if __name__ == "__main__":
     N_low = 20
     N_high = 100
     batch_size = 32
-    training_size = 500
+    training_size = 100
 
     GP_l = 0.1
     GP_sigma = 0.1
     
-    epoch_num = 1000
-    lr = 0.0005
-    gamma = 0.01
+    epoch_num = 50
+    lr = 0.01
+    gamma = 0.5
     minimum_loss = float('inf')
     loss_track = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -44,7 +45,6 @@ if __name__ == "__main__":
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
     # optG = torch.optim.SGD(G.parameters(), lr = 0.0001)
     r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=gamma)
-    # r_scheduleG = torch.optim.lr_scheduler.ExponentialLR(optG, 0.98)
     
     # Logger info
     dir_name = f'models/pairs_training/{training_size}samples/lr{lr}_gamma{gamma}'
@@ -54,9 +54,12 @@ if __name__ == "__main__":
     
     for epoch in range(1, epoch_num+1):
         
-        for i, data in enumerate(train_loader, 0):
+        for i, d in enumerate(train_loader, 0):
             
-            lr, hr = data
+            lr, hr = d
+            size = lr.shape[0]
+            lr = lr.to(device).reshape(size,1,20,20)
+            hr = hr.to(device).reshape(size,1,100,100)
             
             optG.zero_grad()
             sr = G(lr)
