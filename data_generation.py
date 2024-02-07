@@ -108,7 +108,7 @@ def generate_data(N):
 
 def generate_u_high(num, l, sigma, N_low, N_high, file_name_high, file_name_low):
     """
-    Generate and save high-resolution labels by super-resolving the forcing term of low-res field
+    Generate and save high-resolution & low-resolution pairs by super-resolving the forcing term of low-res field
     
     Args
     ----------
@@ -135,6 +135,59 @@ def generate_u_high(num, l, sigma, N_low, N_high, file_name_high, file_name_low)
         r_low_sample = np.random.multivariate_normal(r_low.ravel(),G)
         r_high_sample = cv2.resize(r_low_sample.reshape(N_low,N_low), dsize=(N_high,N_high), interpolation=cv2.INTER_CUBIC)/(h_low**2) * (h_high**2)
         r_high_sample = r_high_sample.reshape(-1,1)
+        
+        C = np.linalg.solve(A_high,r_high_sample)
+        w_high_sample = C.reshape((N_high,N_high))
+        
+        C = np.linalg.solve(A_low,r_low_sample)
+        w_low_sample = C.reshape((N_low,N_low))
+        
+        if i == 0:
+            total_high = w_high_sample.reshape(1,w_high_sample.shape[0],-1)
+            total_low = w_low_sample.reshape(1,w_low_sample.shape[0],-1)
+        else:
+            total_high = np.concatenate([total_high,w_high_sample.reshape(1,w_high_sample.shape[0],-1)],axis=0)
+            total_low = np.concatenate([total_low,w_low_sample.reshape(1,w_low_sample.shape[0],-1)],axis=0)
+            
+    # Save to h5py file
+    with h5py.File(file_name_high, 'w') as hf:
+        hf.create_dataset("high_res",  data=total_high)
+    
+    with h5py.File(file_name_low, 'w') as hf:
+        hf.create_dataset("low_res",  data=total_low)
+        
+    return
+
+
+def generate_pairs(num, l, sigma, N_low, N_high, file_name_high, file_name_low):
+    """
+    Generate and save high-resolution & low-resolution pairs by downscaling the forcing term of high-res field
+    
+    Args
+    ----------
+    num: int
+        The number of training labels required
+    l, sigma: float
+        hyperparameters of the covariance kernal
+    N_low: int
+        The size of low-res PDE domain is (N_low,N_low)
+    N_high: int
+        The size of high-res PDE domain is (N_high,N_high)
+    file_name: string
+        Name of the h5 file to be saved
+    """
+    w_low, r_low, A_low, x_low, y_low = generate_data(N_low)
+    w_high, r_high, A_high, x_high, y_high = generate_data(N_high)
+    
+    h_low = 1/(N_low-1)
+    h_high = 1/(N_high-1)
+
+    G = gaussian_kernal(x_high,y_high,l,sigma,N_high)
+    
+    for i in tqdm(range(num)):
+        r_high_sample = np.random.multivariate_normal(r_high.ravel(),G)
+        r_low_sample = cv2.resize(r_high_sample.reshape(N_high,N_high), dsize=(N_low,N_low), interpolation=cv2.INTER_CUBIC)/(h_high**2) * (h_low**2)
+        r_low_sample = r_low_sample.reshape(-1,1)
         
         C = np.linalg.solve(A_high,r_high_sample)
         w_high_sample = C.reshape((N_high,N_high))
