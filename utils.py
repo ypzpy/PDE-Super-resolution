@@ -71,3 +71,19 @@ class DataFromH5File(data.Dataset):
     def __len__(self):
         assert self.hr.shape[0] == self.lr.shape[0], "Wrong data length"
         return self.hr.shape[0]
+    
+    
+class DataFromH5File2(data.Dataset):
+    def __init__(self, file_name):
+        data = h5py.File(file_name, 'r')
+        self.hr = data['high_res']
+        self.lr = data['low_res']
+        
+    def __getitem__(self, idx):
+        label = torch.from_numpy(self.hr[idx]).float()
+        data = torch.from_numpy(self.lr[idx]).float()
+        return data, label
+    
+    def __len__(self):
+        assert self.hr.shape[0] == self.lr.shape[0], "Wrong data length"
+        return self.hr.shape[0]

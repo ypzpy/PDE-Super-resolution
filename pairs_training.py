@@ -31,7 +31,7 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     w_low, r_low, A_low, x_low, y_low = generate_data(N_low)
-    mean_u, covariance_u = u_low_prior(GP_l,GP_sigma,N_low)
+    mean_u, covariance_u = u_prior(GP_l,GP_sigma,N_low)
     covariance = torch.tensor(covariance_u).to(device).to(torch.float32)
 
     # Load training data
@@ -43,7 +43,6 @@ if __name__ == "__main__":
     G.apply(weights_init_xavier).to(device)
     mse = nn.MSELoss(reduction='sum')
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
-    # optG = torch.optim.SGD(G.parameters(), lr = 0.0001)
     r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=gamma)
     
     # Logger info

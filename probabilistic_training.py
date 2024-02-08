@@ -27,10 +27,10 @@ def sample_p_0(batch_size):
     batch_size: int
     """
     # prior = torch.randn(*[batch_size,1,20,20]).to(device)
-    mean = w_low.reshape(1,1,20,20)
+    mean = w_low.reshape(1,1,N_low, N_low)
     b = np.repeat(mean,batch_size,axis=0)
     prior = torch.tensor(b).to(device).to(torch.float32)
-    prior = prior + 0.1 * torch.rand_like(prior)
+    # prior = prior + 0.1 * torch.rand_like(prior)
     
     return prior
 
@@ -126,14 +126,14 @@ if __name__ == "__main__":
     ll_sigma = 0.005
     
     epoch_num = 1000
-    lr = 0.005
+    lr = 0.0005
     gamma = 0.1
     minimum_loss = float('inf')
     loss_track = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     w_low, r_low, A_low, x_low, y_low = generate_data(N_low)
-    mean_u, covariance_u = u_low_prior(GP_l,GP_sigma,N_low)
+    mean_u, covariance_u = u_prior(GP_l,GP_sigma,N_low)
     covariance = torch.tensor(covariance_u).to(device).to(torch.float32)
     positive_covariance = covariance + 1e-5 * torch.eye(N_low ** 2).to(device)
     sqrt_covariance = torch.tensor(sqrt_matrix(positive_covariance)).to(device).to(torch.float32)
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     # r_scheduleG = torch.optim.lr_scheduler.ExponentialLR(optG, 0.98)
     
     # Logger info
-    dir_name = f'models/probabilistic_training/{training_size}/sigma{ll_sigma}_step{s}_lr{lr}_gamma{gamma}'
+    dir_name = f'models/probabilistic_training/{training_size}/sigma{ll_sigma}_step{s}_lr{lr}_gamma{gamma}_without_noise'
     makedir(dir_name)
     logger = setup_logging('job0', dir_name, console=True)
     parameters = [GP_l, GP_sigma, ll_sigma, s, lr]

@@ -106,7 +106,7 @@ def generate_data(N):
     return w, r, A, x, y
 
 
-def generate_u_high(num, l, sigma, N_low, N_high, file_name_high, file_name_low):
+def generate_pairs_from_ulow(num, l, sigma, N_low, N_high, file_name):
     """
     Generate and save high-resolution & low-resolution pairs by super-resolving the forcing term of low-res field
     
@@ -150,16 +150,14 @@ def generate_u_high(num, l, sigma, N_low, N_high, file_name_high, file_name_low)
             total_low = np.concatenate([total_low,w_low_sample.reshape(1,w_low_sample.shape[0],-1)],axis=0)
             
     # Save to h5py file
-    with h5py.File(file_name_high, 'w') as hf:
+    with h5py.File(file_name, 'w') as hf:
         hf.create_dataset("high_res",  data=total_high)
-    
-    with h5py.File(file_name_low, 'w') as hf:
         hf.create_dataset("low_res",  data=total_low)
         
     return
 
 
-def generate_pairs(num, l, sigma, N_low, N_high, file_name_high, file_name_low):
+def generate_pairs_from_uhigh(num, l, sigma, N_low, N_high, file_name):
     """
     Generate and save high-resolution & low-resolution pairs by downscaling the forcing term of high-res field
     
@@ -203,10 +201,8 @@ def generate_pairs(num, l, sigma, N_low, N_high, file_name_high, file_name_low):
             total_low = np.concatenate([total_low,w_low_sample.reshape(1,w_low_sample.shape[0],-1)],axis=0)
             
     # Save to h5py file
-    with h5py.File(file_name_high, 'w') as hf:
+    with h5py.File(file_name, 'w') as hf:
         hf.create_dataset("high_res",  data=total_high)
-    
-    with h5py.File(file_name_low, 'w') as hf:
         hf.create_dataset("low_res",  data=total_low)
         
     return
@@ -223,7 +219,7 @@ def gaussian_kernal(x,y,l,sigma,N):
     l, sigma: float
         hyperparameters of the covariance kernal
     N : int
-        The size of low-res PDE domain is (N,N)
+        The size of PDE domain is (N,N)
     """
     m = N*N
     n = N*N
@@ -235,16 +231,16 @@ def gaussian_kernal(x,y,l,sigma,N):
     return sigma ** 2 * np.exp(-0.5 / l ** 2 * dist_matrix)
 
 
-def u_low_prior(l,sigma,N):
+def u_prior(l,sigma,N):
     """
-    Work out the mean and covariance matrix of the prior of u_low
+    Work out the mean and covariance matrix of the prior of u
     
     Args
     ----------
     l, sigma: float
         hyperparameters of the covariance kernal
     N : int
-        The size of low-res PDE domain is (N,N)
+        The size of PDE domain is (N,N)
     """
     w, r, A, x, y = generate_data(N)
     mean_u = w
