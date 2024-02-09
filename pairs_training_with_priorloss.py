@@ -15,13 +15,14 @@ if __name__ == "__main__":
     os.environ['CUDA_LAUNCH_BLOCKING']='1'
 
     # Initialisation
-    N_low = 20
-    N_high = 100
+    N_low = 16
+    N_high = 64
     batch_size = 32
-    training_size = 100
+    training_size = 500
 
     GP_l = 0.1
     GP_sigma = 0.1
+    ll_sigma = 0.01
     
     epoch_num = 50
     lr = 0.01
@@ -31,22 +32,25 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     w_low, r_low, A_low, x_low, y_low = generate_data(N_low)
-    mean_u, covariance_u = u_prior(GP_l,GP_sigma,N_low)
-    covariance = torch.tensor(covariance_u).to(device).to(torch.float32)
+    w_high, r_high, A_high, x_high, y_high = generate_data(N_high)
+    mean_u_high, covariance_u_high = u_prior(GP_l,GP_sigma,N_high)
+    covariance_inv = np.linalg.inv(covariance_u_high)
+    inv_tensor = torch.tensor(covariance_inv).to(torch.float32).to(device)
+    w_high_tensor = torch.tensor(w_high).to(torch.float32).to(device)
 
     # Load training data
-    trainset = DataFromH5File("data/high_res_1000.h5","data/low_res_1000.h5")
+    trainset = DataFromH5File2("data/500_data_from_uhigh")
     train_loader = data.DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
 
     # Initialise training model
-    G = UpScale()
+    G = UpScaleBy4()
     G.apply(weights_init_xavier).to(device)
     mse = nn.MSELoss(reduction='sum')
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
     r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=gamma)
     
     # Logger info
-    dir_name = f'models/pairs_training/{training_size}samples/lr{lr}_gamma{gamma}'
+    dir_name = f'models/pairs_training_with_priorloss/{training_size}samples/lr{lr}_gamma{gamma}'
     makedir(dir_name)
     logger = setup_logging('job0', dir_name, console=True)
     logger.info(f'Training for {epoch_num} epoches and learning rate is {lr}')
@@ -57,12 +61,13 @@ if __name__ == "__main__":
             
             lr, hr = d
             size = lr.shape[0]
-            lr = lr.to(device).reshape(size,1,20,20)
-            hr = hr.to(device).reshape(size,1,100,100)
+            lr = lr.to(device).reshape(size,1,N_low,N_low)
+            hr = hr.to(device).reshape(size,1,N_high,N_high)
             
             optG.zero_grad()
             sr = G(lr)
-            loss = mse(sr,hr)/batch_size
+            loss = 1/(2*math.pow(ll_sigma, 2)) * torch.matmul((hr-sr).reshape(size,1,N_high**2),(hr-sr).reshape(size,N_high**2,1)) + 0.5 * torch.matmul(torch.matmul((sr-w_high_tensor).reshape(size,1,N_high**2),inv_tensor),(sr-w_high_tensor).reshape(size,N_high**2,1))
+            loss = loss.sum()
             loss.backward()
             optG.step()
             
