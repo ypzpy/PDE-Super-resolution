@@ -15,15 +15,12 @@ if __name__ == "__main__":
     os.environ['CUDA_LAUNCH_BLOCKING']='1'
 
     # Initialisation
-    N_low = 20
-    N_high = 100
+    N_low = 16
+    N_high = 64
     batch_size = 32
     training_size = 100
-
-    GP_l = 0.1
-    GP_sigma = 0.1
     
-    epoch_num = 50
+    epoch_num = 1000
     lr = 0.01
     gamma = 0.5
     minimum_loss = float('inf')
@@ -31,22 +28,20 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     w_low, r_low, A_low, x_low, y_low = generate_data(N_low)
-    mean_u, covariance_u = u_prior(GP_l,GP_sigma,N_low)
-    covariance = torch.tensor(covariance_u).to(device).to(torch.float32)
 
     # Load training data
-    trainset = DataFromH5File("data/high_res_1000.h5","data/low_res_1000.h5")
+    trainset = DataFromH5File("data/high_data","data/low_data")
     train_loader = data.DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
 
     # Initialise training model
-    G = UpScale()
+    G = UpScaleBy4()
     G.apply(weights_init_xavier).to(device)
     mse = nn.MSELoss(reduction='sum')
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
     r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=gamma)
     
     # Logger info
-    dir_name = f'models/pairs_training/{training_size}samples/lr{lr}_gamma{gamma}'
+    dir_name = f'models/pairs_training/{training_size}samples_scaleby4/lr{lr}_gamma{gamma}'
     makedir(dir_name)
     logger = setup_logging('job0', dir_name, console=True)
     logger.info(f'Training for {epoch_num} epoches and learning rate is {lr}')
@@ -57,8 +52,8 @@ if __name__ == "__main__":
             
             lr, hr = d
             size = lr.shape[0]
-            lr = lr.to(device).reshape(size,1,20,20)
-            hr = hr.to(device).reshape(size,1,100,100)
+            lr = lr.to(device).reshape(size,1,N_low,N_low)
+            hr = hr.to(device).reshape(size,1,N_high,N_high)
             
             optG.zero_grad()
             sr = G(lr)
