@@ -37,13 +37,42 @@ class UpScaleBy4(torch.nn.Module):
         self.layer1 = torch.nn.Conv2d(in_channels=1, out_channels=20, kernel_size=3, stride=1,padding=1)
         self.act1 = torch.nn.ReLU()
         self.layer2 = torch.nn.Conv2d(in_channels=20, out_channels=40, kernel_size=3, stride=1,padding=1)
+        self.layer3 = torch.nn.Conv2d(in_channels=40, out_channels=40, kernel_size=3, stride=1,padding=1)
         self.layer4 = torch.nn.Conv2d(in_channels=40, out_channels=16, kernel_size=3, stride=1,padding=1)
         self.PReLU = torch.nn.PReLU()
         self.shuffle = torch.nn.PixelShuffle(4)
     def forward(self, x):
         x = self.layer1(x)
+        x = self.act1(x)
         x = self.layer2(x)
-        x = self.PReLU(x)
+        x = self.act1(x)
+        x = self.layer3(x)
+        x = self.act1(x)
         x = self.layer4(x)
         x = self.shuffle(x)
+        return x
+    
+    
+class UpScaleBy4New(torch.nn.Module):
+    def __init__(self):
+        super(UpScaleBy4New, self).__init__()
+        self.layer1 = torch.nn.Conv2d(in_channels=1, out_channels=8, kernel_size=4, stride=1,padding=1)
+        self.layer2 = torch.nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3, stride=1,padding=1)
+        self.layer3 = torch.nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3, stride=1,padding=1)
+        self.layer4 = torch.nn.Conv2d(in_channels=8, out_channels=16, kernel_size=3, stride=1,padding=1)
+        self.layer5 = torch.nn.Conv2d(in_channels=1, out_channels=1, kernel_size=2, stride=1,padding=1)
+        self.act1 = torch.nn.ReLU()
+        self.PReLU = torch.nn.PReLU()
+        self.shuffle = torch.nn.PixelShuffle(4)
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.act1(x)
+        x = self.layer2(x)
+        x = self.act1(x)
+        x = self.layer3(x)
+        x = self.act1(x)
+        x = self.layer4(x)
+        x = self.act1(x)
+        x = self.shuffle(x)
+        x = self.layer5(x)
         return x

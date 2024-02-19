@@ -17,14 +17,14 @@ if __name__ == "__main__":
     # Initialisation
     N_low = 16
     N_high = 64
-    batch_size = 32
+    batch_size = 16
     training_size = 500
 
     GP_l = 0.1
-    GP_sigma = 0.1
+    GP_sigma = 0.05
     ll_sigma = 0.01
     
-    epoch_num = 50
+    epoch_num = 500
     lr = 0.01
     gamma = 0.5
     minimum_loss = float('inf')
@@ -37,6 +37,8 @@ if __name__ == "__main__":
     covariance_inv = np.linalg.inv(covariance_u_high)
     inv_tensor = torch.tensor(covariance_inv).to(torch.float32).to(device)
     w_high_tensor = torch.tensor(w_high).to(torch.float32).to(device)
+    A_high_tensor = torch.tensor(A_high).to(torch.float32).to(device)
+    r_high_tensor = torch.tensor(r_high).to(torch.float32).to(device)
 
     # Load training data
     trainset = DataFromH5File2("data/500_data_from_uhigh")
@@ -66,7 +68,9 @@ if __name__ == "__main__":
             
             optG.zero_grad()
             sr = G(lr)
-            loss = 1/(2*math.pow(ll_sigma, 2)) * torch.matmul((hr-sr).reshape(size,1,N_high**2),(hr-sr).reshape(size,N_high**2,1)) + 0.5 * torch.matmul(torch.matmul((sr-w_high_tensor).reshape(size,1,N_high**2),inv_tensor),(sr-w_high_tensor).reshape(size,N_high**2,1))
+            AG = torch.matmul(A_high_tensor, sr.reshape(size, N_high**2, 1)).reshape(size,1,N_high,N_high)
+            loss = 1/(2*math.pow(ll_sigma, 2)) * torch.matmul((hr-sr).reshape(size,1,N_high**2),(hr-sr).reshape(size,N_high**2,1)) + 0.5 * 0.1 * torch.matmul((AG-r_high_tensor.reshape(1,N_high,N_high)).reshape(size,1,N_high**2),(AG-r_high_tensor.reshape(1,N_high,N_high)).reshape(size,N_high**2,1))
+            # loss = 1/(2*math.pow(ll_sigma, 2)) * torch.matmul((hr-sr).reshape(size,1,N_high**2),(hr-sr).reshape(size,N_high**2,1))
             loss = loss.sum()
             loss.backward()
             optG.step()

@@ -179,21 +179,26 @@ def generate_pairs_from_uhigh(num, l, sigma, N_low, N_high, file_name):
     
     h_low = 1/(N_low-1)
     h_high = 1/(N_high-1)
+    scale = int(h_low/h_high)
 
     G = gaussian_kernal(x_high,y_high,l,sigma,N_high)
     
-    for i in tqdm(range(num)):
+    for k in tqdm(range(num)):
         r_high_sample = np.random.multivariate_normal(r_high.ravel(),G)
-        r_low_sample = cv2.resize(r_high_sample.reshape(N_high,N_high), dsize=(N_low,N_low), interpolation=cv2.INTER_CUBIC)/(h_high**2) * (h_low**2)
-        r_low_sample = r_low_sample.reshape(-1,1)
-        
-        C = np.linalg.solve(A_high,r_high_sample)
+        r_high_sample = r_high_sample.reshape(N_high,N_high)
+        r_low_sample = np.zeros((N_low,N_low))
+    
+        for i in range(0,N_low-1):
+            for j in range(0,N_low-1):
+                r_low_sample[i][j] = r_high_sample[scale*i][scale*j]/(h_high**2) * (h_low**2)
+                
+        C = np.linalg.solve(A_high,r_high_sample.reshape(-1,1))
         w_high_sample = C.reshape((N_high,N_high))
         
-        C = np.linalg.solve(A_low,r_low_sample)
+        C = np.linalg.solve(A_low,r_low_sample.reshape(-1,1))
         w_low_sample = C.reshape((N_low,N_low))
         
-        if i == 0:
+        if k == 0:
             total_high = w_high_sample.reshape(1,w_high_sample.shape[0],-1)
             total_low = w_low_sample.reshape(1,w_low_sample.shape[0],-1)
         else:

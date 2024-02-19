@@ -8,6 +8,7 @@ import numpy as np
 import torch.nn.functional as F
 import torch.utils.data as data
 import h5py
+from scipy.linalg import sqrtm
 
 
 def weights_init_xavier(m):
@@ -87,3 +88,10 @@ class DataFromH5File2(data.Dataset):
     def __len__(self):
         assert self.hr.shape[0] == self.lr.shape[0], "Wrong data length"
         return self.hr.shape[0]
+    
+
+def sqrt_matrix(M):
+    """
+    Work out square root of a positive definite matrix
+    """
+    return sqrtm(M.cpu().data.numpy())
