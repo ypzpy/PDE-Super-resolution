@@ -17,10 +17,10 @@ if __name__ == "__main__":
     # Initialisation
     N_low = 16
     N_high = 64
-    batch_size = 32
-    training_size = 100
+    batch_size = 8
+    training_size = 500
     
-    epoch_num = 1000
+    epoch_num = 100
     lr = 0.01
     gamma = 0.5
     minimum_loss = float('inf')
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     w_low, r_low, A_low, x_low, y_low = generate_data(N_low)
 
     # Load training data
-    trainset = DataFromH5File("data/high_data","data/low_data")
+    trainset = DataFromH5File2("data/500_from_uhigh_1_2e-3.h5")
     train_loader = data.DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
 
     # Initialise training model
@@ -38,10 +38,10 @@ if __name__ == "__main__":
     G.apply(weights_init_xavier).to(device)
     mse = nn.MSELoss(reduction='sum')
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
-    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=gamma)
+    r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=20, gamma=gamma)
     
     # Logger info
-    dir_name = f'models/pairs_training/{training_size}samples_scaleby4/lr{lr}_gamma{gamma}'
+    dir_name = f'models/pairs_training/upscaling_network/{training_size}samples/lr{lr}_gamma{gamma}'
     makedir(dir_name)
     logger = setup_logging('job0', dir_name, console=True)
     logger.info(f'Training for {epoch_num} epoches and learning rate is {lr}')
@@ -52,11 +52,22 @@ if __name__ == "__main__":
             
             lr, hr = d
             size = lr.shape[0]
+            
             lr = lr.to(device).reshape(size,1,N_low,N_low)
             hr = hr.to(device).reshape(size,1,N_high,N_high)
+            """
+            # Bicubic correction network
+            lr = lr.cpu().detach().numpy()
+            sr_bicubic = np.zeros((size,N_high,N_high))
+            for j in range(size):
+                sr_bicubic[j] = cv2.resize(lr[j], dsize=(N_high,N_high), interpolation=cv2.INTER_CUBIC)
+            sr_bicubic = torch.tensor(sr_bicubic).to(torch.float32).to(device).reshape(size,1,N_high,N_high)
+            # lr = lr.to(device).reshape(size,1,N_low,N_low)
+            hr = hr.to(device).reshape(size,1,N_high,N_high)"""
             
             optG.zero_grad()
             sr = G(lr)
+            # sr = G(sr_bicubic)
             loss = mse(sr,hr)/batch_size
             loss.backward()
             optG.step()

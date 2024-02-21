@@ -112,13 +112,13 @@ if __name__ == "__main__":
     os.environ['CUDA_LAUNCH_BLOCKING']='1'
 
     # Initialisation
-    N_low = 20
-    N_high = 100
-    batch_size = 32
+    N_low = 16
+    N_high = 64
+    batch_size = 8
     training_size = 100
 
     # Epoch number and step size of Langevin dynamics
-    K = 150
+    K = 60
     s = 0.0001
 
     GP_l = 0.1
@@ -139,14 +139,14 @@ if __name__ == "__main__":
     sqrt_covariance = torch.tensor(sqrt_matrix(positive_covariance)).to(device).to(torch.float32)
 
     # Load training data
-    with h5py.File(f'data/high_res_{training_size}.h5', 'r') as hf:
-        data = hf['high_res_GP'][:]
+    with h5py.File(f'data/500_from_ulow_e-1_e-1.h5', 'r') as hf:
+        data = hf['high_res'][:100]
     data = torch.tensor(data.reshape(training_size,1,N_high,N_high))
     data = data.to(torch.float32).to(device)
     dataloader = torch.utils.data.DataLoader(dataset=data,batch_size=batch_size,shuffle=True)
 
     # Initialise training model
-    G = UpScale()
+    G = UpScaleBy4()
     G.apply(weights_init_xavier).to(device)
     mse = nn.MSELoss(reduction='sum')
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     # r_scheduleG = torch.optim.lr_scheduler.ExponentialLR(optG, 0.98)
     
     # Logger info
-    dir_name = f'models/probabilistic_training/{training_size}/sigma{ll_sigma}_step{s}_lr{lr}_gamma{gamma}_without_noise'
+    dir_name = f'models/probabilistic_training/{training_size}_by4/sigma{ll_sigma}_step{s}_lr{lr}_gamma{gamma}_without_noise'
     makedir(dir_name)
     logger = setup_logging('job0', dir_name, console=True)
     parameters = [GP_l, GP_sigma, ll_sigma, s, lr]

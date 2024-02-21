@@ -17,14 +17,14 @@ if __name__ == "__main__":
     # Initialisation
     N_low = 16
     N_high = 64
-    batch_size = 16
+    batch_size = 8
     training_size = 500
 
-    GP_l = 0.1
-    GP_sigma = 0.05
+    GP_l = 1
+    GP_sigma = 0.005
     ll_sigma = 0.01
     
-    epoch_num = 500
+    epoch_num = 100
     lr = 0.01
     gamma = 0.5
     minimum_loss = float('inf')
@@ -41,18 +41,18 @@ if __name__ == "__main__":
     r_high_tensor = torch.tensor(r_high).to(torch.float32).to(device)
 
     # Load training data
-    trainset = DataFromH5File2("data/500_data_from_uhigh")
+    trainset = DataFromH5File2("data/500_from_uhigh_1_2e-3.h5")
     train_loader = data.DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True)
 
     # Initialise training model
-    G = UpScaleBy4()
+    G = BicubicCorrection()
     G.apply(weights_init_xavier).to(device)
     mse = nn.MSELoss(reduction='sum')
     optG = torch.optim.Adam(G.parameters(), lr = lr, weight_decay=0, betas=(0.5, 0.999))
     r_scheduleG = torch.optim.lr_scheduler.StepLR(optG, step_size=50, gamma=gamma)
     
     # Logger info
-    dir_name = f'models/pairs_training_with_priorloss/{training_size}samples/lr{lr}_gamma{gamma}'
+    dir_name = f'models/pairs_training_with_priorloss/bicubic_correction_network/{training_size}samples/lr{lr}_gamma{gamma}'
     makedir(dir_name)
     logger = setup_logging('job0', dir_name, console=True)
     logger.info(f'Training for {epoch_num} epoches and learning rate is {lr}')
@@ -63,13 +63,26 @@ if __name__ == "__main__":
             
             lr, hr = d
             size = lr.shape[0]
+            
+            """
+            Upscaling network
             lr = lr.to(device).reshape(size,1,N_low,N_low)
+            hr = hr.to(device).reshape(size,1,N_high,N_high)
+            """
+            # Bicubic correction network
+            lr = lr.cpu().detach().numpy()
+            sr_bicubic = np.zeros((size,N_high,N_high))
+            for i in range(size):
+                sr_bicubic[i] = cv2.resize(lr[i], dsize=(N_high,N_high), interpolation=cv2.INTER_CUBIC)
+            sr_bicubic = torch.tensor(sr_bicubic).to(torch.float32).to(device).reshape(size,1,N_high,N_high)
+            # lr = lr.to(device).reshape(size,1,N_low,N_low)
             hr = hr.to(device).reshape(size,1,N_high,N_high)
             
             optG.zero_grad()
-            sr = G(lr)
+            # sr = G(lr)
+            sr = G(sr_bicubic)
             AG = torch.matmul(A_high_tensor, sr.reshape(size, N_high**2, 1)).reshape(size,1,N_high,N_high)
-            loss = 1/(2*math.pow(ll_sigma, 2)) * torch.matmul((hr-sr).reshape(size,1,N_high**2),(hr-sr).reshape(size,N_high**2,1)) + 0.5 * 0.1 * torch.matmul((AG-r_high_tensor.reshape(1,N_high,N_high)).reshape(size,1,N_high**2),(AG-r_high_tensor.reshape(1,N_high,N_high)).reshape(size,N_high**2,1))
+            loss = 1/(2*math.pow(ll_sigma, 2)) * torch.matmul((hr-sr).reshape(size,1,N_high**2),(hr-sr).reshape(size,N_high**2,1)) + 0.5 * 0.01 * torch.matmul((AG-r_high_tensor.reshape(1,N_high,N_high)).reshape(size,1,N_high**2),(AG-r_high_tensor.reshape(1,N_high,N_high)).reshape(size,N_high**2,1))
             # loss = 1/(2*math.pow(ll_sigma, 2)) * torch.matmul((hr-sr).reshape(size,1,N_high**2),(hr-sr).reshape(size,N_high**2,1))
             loss = loss.sum()
             loss.backward()
