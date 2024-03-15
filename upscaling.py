@@ -47,7 +47,6 @@ class UpScaleBy4(torch.nn.Module):
         x = self.PReLU(x)
         x = self.layer3(x)
         x = self.shuffle(x)
-        x = self.layer4(x)
         return x
     
     
@@ -60,17 +59,16 @@ class UpScaleByBicubic(torch.nn.Module):
         self.layer4 = torch.nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, stride=1,padding=1)
         self.layer5 = torch.nn.Conv2d(in_channels=8, out_channels=1, kernel_size=3, stride=1,padding=1)
         self.act1 = torch.nn.ReLU()
+        self.PReLU = torch.nn.PReLU()
     def forward(self, x):
         N_high = 64
         x = F.interpolate(x, [N_high,N_high], mode='bilinear', align_corners=True)
         x = self.layer1(x)
-        x = self.act1(x)
         x = self.layer2(x)
-        x = self.act1(x)
+        x = self.PReLU(x)
         x = self.layer3(x)
-        x = self.act1(x)
         x = self.layer4(x)
-        x = self.act1(x)
+        x = self.PReLU(x)
         x = self.layer5(x)
         return x
     
